@@ -44,7 +44,7 @@ nl_sample = nl_sample[mask_nonempty].reset_index(drop=True)
 # 4. Keep only pairs with word length less than 90 in both languages
 eng_word_len = eng_sample['sentence'].apply(lambda x: len(str(x).split()))
 nl_word_len = nl_sample['sentence'].apply(lambda x: len(str(x).split()))
-mask_len = (eng_word_len < 90) & (nl_word_len < 90)
+mask_len = (eng_word_len < 40) & (nl_word_len < 40)
 eng_sample = eng_sample[mask_len].reset_index(drop=True)
 nl_sample = nl_sample[mask_len].reset_index(drop=True)
 
