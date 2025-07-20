@@ -12,7 +12,7 @@ from tqdm import tqdm
 # load csv data
 eng_df = pd.read_csv("eng_preprocessed.csv", header=None, names=["en"])
 nl_df = pd.read_csv("nl_preprocessed.csv", header=None, names=["nl"])
-df = pd.concat([eng_df, nl_df], axis=1)
+df = pd.concat([eng_df.reset_index(drop=True), nl_df.reset_index(drop=True)], axis=1)
 
 # Train-Test-Split (80/20)
 train_df, test_df = train_test_split(df, test_size=0.2, random_state=42)
@@ -101,76 +101,100 @@ class Decoder(nn.Module):
         output = self.fc(torch.cat((output.squeeze(1), weighted.squeeze(1), embedded.squeeze(1)), dim=1))
         return output, hidden, a.squeeze(1)
 
+    def visualize_attention(input_sentence, output_sentence, attention_weights, save_path):
+        import matplotlib.pyplot as plt
+        import numpy as np
+    
+        input_tokens = input_sentence.split()
+        output_tokens = output_sentence.split()
+        
+        fig, ax = plt.subplots(figsize=(12, 8))
+        cax = ax.matshow(attention_weights, cmap='viridis')
+        fig.colorbar(cax)
+    
+        ax.set_xticks(np.arange(len(input_tokens)))
+        ax.set_yticks(np.arange(len(output_tokens)))
+        ax.set_xticklabels(input_tokens, rotation=45, ha="left")
+        ax.set_yticklabels(output_tokens)
+    
+        ax.set_xlabel('Input (English)')
+        ax.set_ylabel('Output (Dutch)')
+    
+        # Minor fix for layout tightness
+        plt.tight_layout()
+        plt.savefig(save_path)
+        plt.close()
+
 #  main 
 
-    def main():
-        # Load and prepare data
-        eng_df = pd.read_csv("eng_preprocessed.csv", header=None, names=["en"])
-        nl_df = pd.read_csv("nl_preprocessed.csv", header=None, names=["nl"])
-        df = pd.concat([eng_df, nl_df], axis=1)
-        train_df, test_df = train_test_split(df, test_size=0.2, random_state=42)
+def main():
+    # Load and prepare data
+    eng_df = pd.read_csv("eng_preprocessed.csv", header=None, names=["en"])
+    nl_df = pd.read_csv("nl_preprocessed.csv", header=None, names=["nl"])
+    df = pd.concat([eng_df.reset_index(drop=True), nl_df.reset_index(drop=True)], axis=1)
+    train_df, test_df = train_test_split(df, test_size=0.2, random_state=42)
 
-        # Build vocabularies
-        src_vocab = build_vocab(train_df["en"])
-        tgt_vocab = build_vocab(train_df["nl"])
-        inv_tgt_vocab = {i: w for w, i in tgt_vocab.items()}
+    # Build vocabularies
+    src_vocab = build_vocab(train_df["en"])
+    tgt_vocab = build_vocab(train_df["nl"])
+    inv_tgt_vocab = {i: w for w, i in tgt_vocab.items()}
 
-        # Create datasets and loaders
-        train_dataset = TranslationDataset(train_df["en"].tolist(), train_df["nl"].tolist(), src_vocab, tgt_vocab)
-        test_dataset = TranslationDataset(test_df["en"].tolist(), test_df["nl"].tolist(), src_vocab, tgt_vocab)
-        train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
-        test_loader = DataLoader(test_dataset, batch_size=64)
+    # Create datasets and loaders
+    train_dataset = TranslationDataset(train_df["en"].tolist(), train_df["nl"].tolist(), src_vocab, tgt_vocab)
+    test_dataset = TranslationDataset(test_df["en"].tolist(), test_df["nl"].tolist(), src_vocab, tgt_vocab)
+    train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
+    test_loader = DataLoader(test_dataset, batch_size=64)
 
-        # Initialize models
-        input_dim = len(src_vocab)
-        output_dim = len(tgt_vocab)
-        emb_dim = 128
-        hid_dim = 256
+    # Initialize models
+    input_dim = len(src_vocab)
+    output_dim = len(tgt_vocab)
+    emb_dim = 128
+    hid_dim = 256
 
-        encoder = Encoder(input_dim, emb_dim, hid_dim)
-        attention = Attention(hid_dim)
-        decoder = Decoder(output_dim, emb_dim, hid_dim, attention)
+    encoder = Encoder(input_dim, emb_dim, hid_dim)
+    attention = Attention(hid_dim)
+    decoder = Decoder(output_dim, emb_dim, hid_dim, attention)
 
-        # Forward pass for encoder to test dimensions
-        encoder_outputs, hidden = encoder(next(iter(train_loader))[0])
-        print("Encoder output shape:", encoder_outputs.shape)
+    # Forward pass for encoder to test dimensions
+    encoder_outputs, hidden = encoder(next(iter(train_loader))[0])
+    print("Encoder output shape:", encoder_outputs.shape)
 
-        # Choose a sample from the test set
-        sample_src_text = test_df["en"].iloc[0]
-        sample_tgt_text = test_df["nl"].iloc[0]
+    # Choose a sample from the test set
+    sample_src_text = test_df["en"].iloc[0]
+    sample_tgt_text = test_df["nl"].iloc[0]
 
-        sample_src_tensor = torch.tensor([tokenize(sample_src_text, src_vocab)])
-        encoder.eval()
-        decoder.eval()
+    sample_src_tensor = torch.tensor([tokenize(sample_src_text, src_vocab)])
+    encoder.eval()
+    decoder.eval()
 
-        # Perform greedy decoding and collect attention weights
-        with torch.no_grad():
-            encoder_outputs, hidden = encoder(sample_src_tensor)
-            input_token = torch.tensor([tgt_vocab["<sos>"]])
-            predicted_tokens = []
-            attentions = []
+    # Perform greedy decoding and collect attention weights
+    with torch.no_grad():
+        encoder_outputs, hidden = encoder(sample_src_tensor)
+        input_token = torch.tensor([tgt_vocab["<sos>"]])
+        predicted_tokens = []
+        attentions = []
 
-            for _ in range(20):  # limit max output length
-                output, hidden, attention = decoder(input_token, hidden, encoder_outputs)
-                pred_token = output.argmax(1).item()
-                predicted_tokens.append(pred_token)
-                attentions.append(attention.cpu().numpy())
-                input_token = torch.tensor([pred_token])
-                if pred_token == tgt_vocab["<eos>"]:
-                    break
+        for _ in range(20):  # limit max output length
+            output, hidden, attention = decoder(input_token, hidden, encoder_outputs)
+            pred_token = output.argmax(1).item()
+            predicted_tokens.append(pred_token)
+            attentions.append(attention.cpu().numpy())
+            input_token = torch.tensor([pred_token])
+            if pred_token == tgt_vocab["<eos>"]:
+                break
 
-        # Convert token IDs back to words
-        predicted_words = [list(tgt_vocab.keys())[list(tgt_vocab.values()).index(t)]
-                        for t in predicted_tokens if t not in [tgt_vocab["<eos>"], tgt_vocab["<pad>"]]]
-        attention_matrix = np.stack(attentions)
+    # Convert token IDs back to words
+    predicted_words = [list(tgt_vocab.keys())[list(tgt_vocab.values()).index(t)]
+                    for t in predicted_tokens if t not in [tgt_vocab["<eos>"], tgt_vocab["<pad>"]]]
+    attention_matrix = np.stack(attentions)
 
-        # visualation
-        import pathlib, os
-        plot_dir = pathlib.Path("plots")
-        plot_dir.mkdir(exist_ok=True)
-        plot_path = plot_dir / "attention_sample.png"
+    # visualation
+    import pathlib, os
+    plot_dir = pathlib.Path("plots")
+    plot_dir.mkdir(exist_ok=True)
+    plot_path = plot_dir / "attention_sample.png"
 
-        visualize_attention(sample_src_text, ' '.join(predicted_words), attention_matrix, plot_path)
+    visualize_attention(sample_src_text, ' '.join(predicted_words), attention_matrix, plot_path)
 
 if __name__ == "__main__":
     main()
