@@ -100,30 +100,31 @@ class Decoder(nn.Module):
         output, hidden = self.rnn(rnn_input, hidden)
         output = self.fc(torch.cat((output.squeeze(1), weighted.squeeze(1), embedded.squeeze(1)), dim=1))
         return output, hidden, a.squeeze(1)
-
-    def visualize_attention(input_sentence, output_sentence, attention_weights, save_path):
-        import matplotlib.pyplot as plt
-        import numpy as np
-    
-        input_tokens = input_sentence.split()
-        output_tokens = output_sentence.split()
         
-        fig, ax = plt.subplots(figsize=(12, 8))
-        cax = ax.matshow(attention_weights, cmap='viridis')
-        fig.colorbar(cax)
+#vizualization
+def visualize_attention(input_sentence, output_sentence, attention_weights, save_path):
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    input_tokens = input_sentence.split()
+    output_tokens = output_sentence.split()
     
-        ax.set_xticks(np.arange(len(input_tokens)))
-        ax.set_yticks(np.arange(len(output_tokens)))
-        ax.set_xticklabels(input_tokens, rotation=45, ha="left")
-        ax.set_yticklabels(output_tokens)
-    
-        ax.set_xlabel('Input (English)')
-        ax.set_ylabel('Output (Dutch)')
-    
-        # Minor fix for layout tightness
-        plt.tight_layout()
-        plt.savefig(save_path)
-        plt.close()
+    fig, ax = plt.subplots(figsize=(12, 8))
+    cax = ax.matshow(attention_weights, cmap='viridis')
+    fig.colorbar(cax)
+
+    ax.set_xticks(np.arange(len(input_tokens)))
+    ax.set_yticks(np.arange(len(output_tokens)))
+    ax.set_xticklabels(input_tokens, rotation=45, ha="left")
+    ax.set_yticklabels(output_tokens)
+
+    ax.set_xlabel('Input (English)')
+    ax.set_ylabel('Output (Dutch)')
+
+    # Minor fix for layout tightness
+    plt.tight_layout()
+    plt.savefig(save_path)
+    plt.close()
 
 #  main 
 
