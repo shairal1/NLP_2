@@ -2,3 +2,4 @@
 sampled_data
 data/
 *mlruns
+.venv/
