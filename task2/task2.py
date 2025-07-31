@@ -44,7 +44,7 @@ nl_sample = nl_sample[mask_nonempty].reset_index(drop=True)
 # 4. Keep only pairs with word length less than 90 in both languages
 eng_word_len = eng_sample['sentence'].apply(lambda x: len(str(x).split()))
 nl_word_len = nl_sample['sentence'].apply(lambda x: len(str(x).split()))
-mask_len = (eng_word_len < 40) & (nl_word_len < 40)
+mask_len = (eng_word_len < 80) & (nl_word_len < 80)
 eng_sample = eng_sample[mask_len].reset_index(drop=True)
 nl_sample = nl_sample[mask_len].reset_index(drop=True)
 
@@ -135,57 +135,3 @@ plt.close()
 
 
 
-#%%
-
-# Now eng_sample['sentence'] and nl_sample['sentence'] are preprocessed and ready for further steps
-'''
-# Task specific pre -processing
-
-# 2. Tokenization (simple whitespace)
-eng_tokens = [s.split() for s in eng_sample['sentence']]
-nl_tokens = [s.split() for s in nl_sample['sentence']]
-
-# 3. Add <SOS> and <EOS> to target (Dutch) sentences
-nl_tokens = [['<SOS>'] + s + ['<EOS>'] for s in nl_tokens]
-
-# 4. Build vocabularies
-def build_vocab(token_lists, min_freq=2):
-    counter = Counter(token for sent in token_lists for token in sent)
-    vocab = {'<PAD>':0, '<SOS>':1, '<EOS>':2, '<UNK>':3}
-    for token, freq in counter.items():
-        if freq >= min_freq and token not in vocab:
-            vocab[token] = len(vocab)
-    return vocab
-
-eng_vocab = build_vocab(eng_tokens)
-nl_vocab = build_vocab(nl_tokens)
-
-# 5. Integer encoding
-def encode(tokens, vocab):
-    return [vocab.get(token, vocab['<UNK>']) for token in tokens]
-
-eng_indices = [encode(sent, eng_vocab) for sent in eng_tokens]
-nl_indices = [encode(sent, nl_vocab) for sent in nl_tokens]
-
-# 6. Padding
-def pad_sequences(sequences, max_len, pad_value=0):
-    return [seq + [pad_value]*(max_len - len(seq)) if len(seq) < max_len else seq[:max_len] for seq in sequences]
-
-max_len_eng = max(len(seq) for seq in eng_indices)
-max_len_nl = max(len(seq) for seq in nl_indices)
-#%%
-min_len_eng = min(len(seq) for seq in eng_indices)
-min_len_nl = min(len(seq) for seq in nl_indices)
-print(min_len_eng)
-#%%
-# Find the index of the shortest English sentence
-min_len_eng = min(len(seq) for seq in eng_indices)
-min_idx_eng = [i for i, seq in enumerate(eng_indices) if len(seq) == min_len_eng][0]
-print("Shortest English sentence (length={}):".format(min_len_eng))
-print(eng_sample['sentence'].iloc[min_idx_eng])
-
-# Do the same for Dutch
-min_len_nl = min(len(seq) for seq in nl_indices)
-min_idx_nl = [i for i, seq in enumerate(nl_indices) if len(seq) == min_len_nl][0]
-print("Shortest Dutch sentence (length={}):".format(min_len_nl))
-print(nl_sample['sentence'].iloc[min_idx_nl])'''
